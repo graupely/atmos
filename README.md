@@ -19,13 +19,20 @@ sub_dir = ""
 valid_time = "2021-01-01_22:00:00" # Needs to match time format in config.py
 domain = "d01"
 
+# WRF instance of ModelOutput
 wrf_sim1 = ModelOutput("WRF", "NETCDF", main_dir, sub_dir, valid_time, domain)
-wrf_sim1.find_valid_files() # Returns a list of valid files based on user input
-wrf_sim1.read_file() # Reads valid files if data format is supported in config.py
+
+# Returns a list of valid files based on user input wrf_sim1.valid_files and wrf_sim1.unread_files
+wrf_sim1.find_valid_files() 
+
+# Reads valid files if data format is supported in config.py and removes from wrf_sim1.unread_files
+wrf_sim1.read_file() 
 
 # Sets dims as attributes using format in config.py (currently, nt, nz, ny, nx format)
 # wrf_sim1.nz returns nz (for WRF this would be 'bottom_top')
 wrf_sim1.check_for_attributes("dims) 
 
-wrf_sim1.check_for_attributes("coords") # Set coordinates 
+# Sets coords as attributes using format in config.py
+# wrf_sim1.latitude returns a latitude array (for WRF this would be 'XLAT')
+wrf_sim1.check_for_attributes("coords")
 ```
