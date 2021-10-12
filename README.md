@@ -7,7 +7,8 @@ The Atmospheric Model Output System (ATMOS) is a set of python scripts that will
 various atmospheric model output types like WRF, RRFS, and HRRR and return a class with user defined dimensions, 
 coordinates, and varialbes, like nx, ny, nz, and temperature.
 
-Currently, there are two files both config.py and config_model_ouptput.py
+Currently, there are two files both config.py and config_model_ouptput.py and WRF, RRFS, and HRRR model output
+can be read, dims and coords can be set. 
 
 An example for WRF model output is below:
 
