@@ -110,22 +110,53 @@ class ModelOutput:
     def find_valid_files(self):
         """Finds one or more valid files from user input of
             main_dir, sub_dir, and valid_time"""
-        valid_time_unix = datetime.strptime(self.valid_time,
-                                        config.time_format[self.model_name]
-                                        ).timestamp()
         
         # Model specific file search
         if(self.model_name == "wrf"):
-            search_path = self.main_dir+self.sub_dir+"wrfout_"+self.domain
+            search_path = self.main_dir+self.sub_dir+"wrfout_"+self.domain+"*"
+        elif(self.model_name == "wrf-geogrid"):
+            search_path = self.main_dir+"geo_em."+self.domain+".nc"
         elif(self.model_name == "rrfs"):
-            search_path = self.main_dir+self.sub_dir+"dyn"
+            search_path = self.main_dir+self.sub_dir+"dyn"+"*"
         elif(self.model_name == "hrrr"):
-            search_path = self.main_dir+self.sub_dir
+            search_path = self.main_dir+self.sub_dir+"*"
         else:
-            search_path = self.main_dir+self.sub_dir
+            search_path = self.main_dir+self.sub_dir+"*"
             
         # File search path
-        file_search = glob.glob(search_path+"*")
+        file_search = glob.glob(search_path)
+
+        # Geogrid does not have time associated with it
+        if self.model_name == "wrf-geogrid":
+            # If no files found search subdirectories
+            if not file_search:
+                search_path = self.main_dir+self.sub_dir \
+                              +"geo_em."+self.domain+".nc"
+                file_search = glob.glob(search_path)
+                if len(file_search) == 1:
+                   print(f"Single geogrid file found in subdirectory: "
+                         f"{file_search[0]}")
+                   setattr(self, "valid_files", [file_search[0]])
+                   setattr(self, "unread_files", [file_search[0]])
+                   return
+                else:
+                   raise ModelInputError(f"Multiple geogrid files found: "
+                                         f"{file_search}")
+            else:
+                if len(file_search) == 1:
+                   print(f"Single geogrid file found in main directory: "
+                         f"{file_search[0]}")
+                   setattr(self, "valid_files", [file_search[0]])
+                   setattr(self, "unread_files", [file_search[0]])
+                   return
+                else:
+                   raise ModelInputError(f"Multiple geogrid files found: "
+                                         f"{file_search}")
+
+        # Unix time
+        valid_time_unix = datetime.strptime(self.valid_time,
+                                        config.time_format[self.model_name]
+                                        ).timestamp()
 
         # The starting index of year, %Y, in format string
         year_index_start = config.time_format[self.model_name].index("%Y")
