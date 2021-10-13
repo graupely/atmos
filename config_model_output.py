@@ -1,11 +1,14 @@
-import numpy as np
-import xarray as xr
-import pandas as pd
 import copy
 import time
 import glob
 from datetime import datetime, timedelta
+
+import numpy as np
+import xarray as xr
+import pandas as pd
+
 import config
+
 
 def catch(user_input, defined_type):  
     """ Function that check type.
