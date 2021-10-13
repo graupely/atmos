@@ -1,5 +1,5 @@
 # Supported models and data formats
-supported_models = ("wrf", "rrfs", "hrrr", "wrf-geogrid")
+supported_models = ("wrf", "wrf-geogrid", "rrfs", "hrrr")
 supported_formats = ("netcdf", "grib2")
 
 # Time format

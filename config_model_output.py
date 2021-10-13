@@ -328,6 +328,10 @@ class ModelOutput:
                                   f" not {tmpval}")
     
         print(f"Checking {self.model_name} attributes")
+        if not self.model_name in getattr(config, tmpval):
+            print(f"No {tmpval} for {self.model_name}")
+            return
+        
         # If attribute missing, get and set attribute
         if not all([hasattr(self, k) for k \
                     in getattr(config, tmpval)[self.model_name]]):
