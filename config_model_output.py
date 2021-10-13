@@ -10,7 +10,7 @@ import pandas as pd
 import config
 
 
-def catch(user_input, defined_type):  
+def catch(user_input, defined_type):
     """ Function that check type.
         Can be used in list comprehension"""
     if isinstance(user_input, defined_type):
@@ -19,40 +19,42 @@ def catch(user_input, defined_type):
         raise TypeError(f" Input value '{user_input}'"
                         f" must be a {defined_type}")
 
+
 class ModelInputError(Exception):
     """ Custom model input error"""
     pass
 
+
 class ModelOutput:
     """ A Python object used to read an format various atmospheric
         model output types"""
-    
-    def __init__(self, model_name, data_format, main_dir, sub_dir, 
+
+    def __init__(self, model_name, data_format, main_dir, sub_dir,
                 valid_time, domain = "d01"):
         """ Sets model attributes from user input
-        
+
             Parameters
             ----------
             model_name : str
                 The model name, supported values are `wrf`,
                 `rrfs`, and `hrrr`
-                
+
             data_format : str
-                The model data type, supported values are 
+                The model data type, supported values are
                 `netcdf` and `grib2`
-                
+
             main_dir : str
                 The main model output directory
-                
+
             sub_dir : str
                 Subdirectories to be searched for model output.
                 Can be a partial string, `**` will be appended
-                
+
             valid_time : str
                 Model output valid time
-                
+
             domain : str
-                domain to read, default is `d01` for wrf, 
+                domain to read, default is `d01` for wrf,
                 unused for `rrfs` and `hrrr`
         """
         input_params = {"model_name": model_name,
@@ -63,7 +65,7 @@ class ModelOutput:
                         "domain": domain
                         }
 
-        [catch(i, str) for i in input_params.values()]        
+        [catch(i, str) for i in input_params.values()]
         input_params = {k:v.strip().lower() for k, v in input_params.items()}
 
         # Check for supported models listed in config.py
@@ -87,33 +89,33 @@ class ModelOutput:
         tmpkey = "main_dir"
         tmpval = input_params[tmpkey]
         tmpval = tmpval+"/" if not tmpval.endswith("/") else tmpval
-        setattr(self, tmpkey, tmpval)   
+        setattr(self, tmpkey, tmpval)
 
         tmpkey = "sub_dir"
         tmpval = input_params[tmpkey]
         tmpval = tmpval+"**/" if not tmpval.endswith("**/") else tmpval
-        setattr(self, tmpkey, tmpval)   
+        setattr(self, tmpkey, tmpval)
 
         tmpkey = "valid_time"
         tmpval = input_params[tmpkey]
-        setattr(self, tmpkey, tmpval)    
-         
+        setattr(self, tmpkey, tmpval)
+
         tmpkey = "domain"
         tmpval = input_params[tmpkey]
-        setattr(self, tmpkey, tmpval)   
-        
+        setattr(self, tmpkey, tmpval)
+
         setattr(self,"input_keys",input_params.keys())
         print(self)
-        
-    def __repr__(self):        
+
+    def __repr__(self):
         """ Returns a string of all users specified model attributes"""
         output_string = [i+": "+getattr(self,i) for i in self.input_keys]
         return f"User variables have been set:\n"+"\n".join(output_string)
-    
+
     def find_valid_files(self):
         """Finds one or more valid files from user input of
             main_dir, sub_dir, and valid_time"""
-        
+
         # Model specific file search
         if(self.model_name == "wrf"):
             search_path = self.main_dir+self.sub_dir+"wrfout_"+self.domain+"*"
@@ -125,7 +127,7 @@ class ModelOutput:
             search_path = self.main_dir+self.sub_dir+"*"
         else:
             search_path = self.main_dir+self.sub_dir+"*"
-            
+
         # File search path
         file_search = glob.glob(search_path)
 
@@ -168,33 +170,33 @@ class ModelOutput:
         #.. yyyymmdd/fcast_001 and if yyymmdd is not valid_time
         #.. Must find base time + forecast hour (done below)
         valid_file = [f for f in file_search if self.valid_time in f]
-        
+
         # Sorted list of all files that include the correct year: 'YYYY'
         all_files_matching_year = sorted(list(set(
             [f for f in file_search \
                 if self.valid_time[year_index_start:4] in f])))
-        
+
         # Error if nothing in all_files_matching_year
         if not all_files_matching_year:
             raise ModelInputError(f"File search returned "
                                   f"no matches. Check values of "
-                                  f"'main_dir' = {self.main_dir}, \n" 
+                                  f"'main_dir' = {self.main_dir}, \n"
                                   f"'sub_dir' = {self.sub_dir}, and "
                                   f"'valid_time' = {self.valid_time}")
-            
+
         # Base time, based on all matching files
         base_time_file = all_files_matching_year[0]
-        
+
         time_index_start = base_time_file.rfind(
             self.valid_time[year_index_start:4])
         base_time = base_time_file[
             time_index_start:time_index_start+len(self.valid_time)]
         base_time_dtformat = datetime.strptime(
-            base_time, config.time_format[self.model_name]) 
+            base_time, config.time_format[self.model_name])
 
         file_format = ["".join(f[time_index_start:].split(base_time+"/")) \
                        for f in all_files_matching_year]
-        
+
         # Strip off the ending if there is one
         file_format = [f[:-3] if f.endswith(".nc") \
                        else f for f in file_format]
@@ -204,22 +206,22 @@ class ModelOutput:
                        else f for f in file_format]
         file_format = [f[:-6] if f.endswith(".grib2") \
                        else f for f in file_format]
-        
+
         # Get forecast and init hour for file format: hrrr.t00z.wrfnatf06.nc
-        # or yyyymmddhh/f006.nc, these lists are empty otherwise 
+        # or yyyymmddhh/f006.nc, these lists are empty otherwise
         forecast_hours = [i[i.rfind("f")+1::] \
                           for i in file_format if i.rfind("f")>0]
-            
+
         #.. Initialization hour is alway format '\d\d', '2' is hardcoded
         init_hours = [i[i.rfind("z")-2:i.rfind("z")] \
                       for i in file_format if i.rfind("z")>0]
 
         valid_time_dtformat = datetime.strptime(
             self.valid_time, config.time_format[self.model_name])
-        
+
         valid_minus_base_seconds = (valid_time_dtformat \
             - base_time_dtformat).total_seconds()
-        
+
         if valid_file:
             if len(valid_file) == 1:
                 # If one valid file is found
@@ -250,8 +252,8 @@ class ModelOutput:
                 else:
                     # For yyyymmddhh/forecast01, if valid_time is set to
                     # the analysis, then all forecast files in yyyymmddhh
-                    # will be matched. This takes the first file in the 
-                    # sorted listed, or the anlaysis. If the valid time is 
+                    # will be matched. This takes the first file in the
+                    # sorted listed, or the anlaysis. If the valid time is
                     # the next hour, then valid_time will be different than
                     # the search directory and no valid times will match
                     # and the valid file will be found in the else below
@@ -293,33 +295,33 @@ class ModelOutput:
             else:
                 raise ModelInputError(f"Single valid file not found for "
                                       f"valid time = {self.valid_time}")
-                
+
     def read_file(self):
         """ Reads a single model output file using xarray"""
         if self.data_format == "netcdf":
             try:
-                with xr.open_dataset(self.unread_files[0]) as ds: 
+                with xr.open_dataset(self.unread_files[0]) as ds:
                     print(f"Netcdf file read sucessfully: "
                           f"{self.unread_files[0]}")
-                    self.ds = ds # Save the entire dataset as an attribute   
+                    self.ds = ds # Save the entire dataset as an attribute
                     self.unread_files.pop(0)
             except IOError as e:
                 print("I/O error({0}): {1}".format(e.errno, e.strerror))
         elif self.data_format == "grib2":
             try:
-                with xr.open_dataset(self.unread_files[0], 
+                with xr.open_dataset(self.unread_files[0],
                                      engine='pynio') as ds:
                     print(f"Grib file read sucessfully: "
                           f"{self.unread_files[0]}")
-                    self.ds = ds # Save the entire dataset as an attribute   
+                    self.ds = ds # Save the entire dataset as an attribute
                     self.unread_files.pop(0)
             except IOError as e:
                 print("I/O error({0}): {1}".format(e.errno, e.strerror))
-        
+
     def check_for_attributes(self, tmpval = "dims"):
-        """Check for model attributes dims or coords set in 
+        """Check for model attributes dims or coords set in
             config.py and sets if any are missing
-        
+
         Parameters
             ----------
             tmpval : str
@@ -329,27 +331,27 @@ class ModelOutput:
             raise ModelInputError(f"Attribute check can only"
                                   f" be for 'dims' or 'coords',"
                                   f" not {tmpval}")
-    
+
         print(f"Checking {self.model_name} attributes")
         if not self.model_name in getattr(config, tmpval):
             print(f"No {tmpval} for {self.model_name}")
             return
-        
+
         # If attribute missing, get and set attribute
         if not all([hasattr(self, k) for k \
                     in getattr(config, tmpval)[self.model_name]]):
             [print(f"Missing {tmpval}: {k}") for k in getattr(
                 config, tmpval)[self.model_name] if not hasattr(self, k)]
             self.get_model_attributes(tmpval)
-            
+
     def get_model_attributes(self, tmpval):
         """Gets model attributes if missing
-        
+
         Parameters
             ----------
             tmpval : str
                 Either `dims` or `coords`
-        """       
+        """
         # For loop for simplicity since there are only 4 dimensions
         # max (time, x, y, z) and 4 coordinates max (time, x, y, z)
         for k,v in getattr(config, tmpval)[self.model_name].items():
