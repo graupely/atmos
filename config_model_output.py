@@ -7,7 +7,8 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
-import config
+from config import supported_models as sm
+from config import supported_formats as sf
 from utils import get_logger
 
 
