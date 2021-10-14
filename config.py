@@ -6,7 +6,8 @@
 time_format = {"wrf": "%Y-%m-%d_%H:%M:%S",
                "wrf-geogrid": None,
                "rrfs": "%Y%m%d%H",
-               "hrrr": "%Y%m%d%H"
+               "hrrr": "%Y%m%d%H",
+               "hrrr-sfc": "%Y%m%d%H"
               }
 
 # Model dimensions for supported models
@@ -23,7 +24,9 @@ dims = {"wrf": {"nt": "Time",
                  "ny": "grid_yt"},
         "hrrr": {"nz": "lv_HYBL0",
                  "ny": "ygrid_0",
-                 "nx": "xgrid_0"}
+                 "nx": "xgrid_0"},
+        "hrrr-sfc": {"ny": "ygrid_0",
+                     "nx": "xgrid_0"}
         }
 
 # Model cooordinates for supported models
@@ -35,7 +38,9 @@ coords = {"wrf": {"latitude": "XLAT",
                    "pressure": "pfull",
                    "time": "time"},
           "hrrr": {"latitude": "gridlat_0",
-                   "longitude": "gridlon_0"}
+                   "longitude": "gridlon_0"},
+          "hrrr-sfc": {"latitude": "gridlat_0",
+                       "longitude": "gridlon_0"}
         }
 
 supported_models = {
@@ -74,6 +79,14 @@ supported_models = {
     },
     'hrrr': {
         'time_format': '%Y%m%d%H',
+    },
+    'hrrr-sfc': {
+        'time_format': '%Y%m%d%H',
+        # variable format is
+        # rename : nativename
+        'vars2d' : {
+            '12h precipitation' : 'APCP_P8_L1_GLC0_acc12h'
+        }
     },
 }
 supported_formats = {

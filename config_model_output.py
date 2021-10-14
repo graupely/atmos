@@ -73,8 +73,9 @@ class ModelOutput:
         self.sub_dir = sub_dir
         self.valid_time = valid_time
         self.domain = domain
-        # TODO: is this attribute necessary?
-        # self.input_keys = ['model_name', 'data_format', 'main_dir', 'sub_dir', 'valid_time', 'domain']
+        # TODO: is this attribute necessary? 
+        # AAJ 14 OCT 2021: This is currently printed in dunder repr
+        self.input_keys = ['model_name', 'data_format', 'main_dir', 'sub_dir', 'valid_time', 'domain']
         self._raise_for_invalid_parameter_types()
         self._clean_parameter_values()
         self._raise_for_invalid_parameter_values()
@@ -375,3 +376,27 @@ class ModelOutput:
                 else:
                     print(f"Setting missing {tmpval} {k} to {tmpattr}")
                     setattr(self, k, tmpattr)
+
+                
+    def create_dataframe(self, **args):
+        """Creates a dataframe, allowing user to add
+        additional variables through **args"""
+
+        tmpvars = sm[self.model_name]['vars2d']
+        tmpnz = int(1)
+        tmp_df = pd.DataFrame({"xindex": np.tile(
+            np.arange(self.nx), int(tmpnz * self.ny)),
+                               "yindex": np.tile(
+            np.repeat(np.arange(self.ny), int(self.nx)), tmpnz),
+                           })
+        
+        for k, v in tmpvars.items() :
+            tmp_df[k] = self.ds[v].values.ravel()
+            
+        if hasattr(self, "latitude"):
+            tmp_df["latitude"] = self.latitude.ravel()
+
+        if hasattr(self, "longitude"):
+            tmp_df["longitude"] = self.longitude.ravel()
+            
+        self.sfc = tmp_df
