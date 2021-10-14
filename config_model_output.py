@@ -8,6 +8,7 @@ import xarray as xr
 import pandas as pd
 
 import config
+from utils import get_logger
 
 
 def catch(user_input, defined_type):
@@ -18,6 +19,7 @@ def catch(user_input, defined_type):
     else:
         raise TypeError(f" Input value '{user_input}'"
                         f" must be a {defined_type}")
+_LOGGER = get_logger('config_model_output', debug=True)
 
 
 class ModelInputError(Exception):
