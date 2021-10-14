@@ -159,6 +159,7 @@ class ModelOutput:
                    setattr(self, "valid_files", [file_search[0]])
                    setattr(self, "unread_files", [file_search[0]])
                    return
+                # TODO: why is this bad?
                 else:
                    raise ModelInputError(f"Multiple geogrid files found: "
                                          f"{file_search}")
@@ -177,6 +178,7 @@ class ModelOutput:
         valid_time_unix = datetime.strptime(self.valid_time,
                                         config.time_format[self.model_name]
                                         ).timestamp()
+        # TODO: this variable is unused
 
         # The starting index of year, %Y, in format string
         year_index_start = config.time_format[self.model_name].index("%Y")
