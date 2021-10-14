@@ -1,6 +1,6 @@
 # Supported models and data formats
-supported_models = ("wrf", "wrf-geogrid", "rrfs", "hrrr")
-supported_formats = ("netcdf", "grib2")
+# supported_models = ("wrf", "wrf-geogrid", "rrfs", "hrrr")
+# supported_formats = ("netcdf", "grib2")
 
 # Time format
 time_format = {"wrf": "%Y-%m-%d_%H:%M:%S",
@@ -38,3 +38,45 @@ coords = {"wrf": {"latitude": "XLAT",
                    "longitude": "gridlon_0"}
         }
 
+supported_models = {
+    'template': {
+        # this key and it's children are optional
+        'search_path_modification': {
+            'use_domain': bool,
+            'main_dir_sub_dir_div': '',
+            'sub_dir_domain_div': '',
+            'suffix': ''
+        },
+        # required but may be None
+        'time_format': '%Y-%m-%d_%H:%M:%S',
+    },
+    'wrf': {
+        'search_path_modification': {
+            'use_domain': True,
+            'sub_dir_domain_div': 'wrfout_',
+            'suffix': '*'
+        },
+        'time_format': '%Y-%m-%d_%H:%M:%S',
+    },
+    'wrf-geogrid': {
+        'search_path_modification': {
+            'use_domain': True,
+            'main_dir_sub_dir_div': 'geo_em.',
+            'suffix': '.nc'
+        },
+        'time_format': None,
+    },
+    'rrfs': {
+        'search_path_modification': {
+            'suffix': 'dyn*'
+        },
+        'time_format': '%Y%m%d%H',
+    },
+    'hrrr': {
+        'time_format': '%Y%m%d%H',
+    },
+}
+supported_formats = {
+    'netcdf': {},
+    'grib2': {},
+}
