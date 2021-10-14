@@ -12,14 +12,6 @@ from config import supported_formats as sf
 from utils import get_logger
 
 
-def catch(user_input, defined_type):
-    """Function that check type.
-        Can be used in list comprehension"""
-    if isinstance(user_input, defined_type):
-        pass
-    else:
-        raise TypeError(f" Input value '{user_input}'"
-                        f" must be a {defined_type}")
 _LOGGER = get_logger('config_model_output', debug=True)
 
 
@@ -29,87 +21,96 @@ class ModelInputError(Exception):
 
 
 class ModelOutput:
-    """A Python object used to read an format various atmospheric
-        model output types"""
+    """A Python object used to read an format various atmospheric model output
+    types
+    """
 
-    def __init__(self, model_name, data_format, main_dir, sub_dir,
-                 valid_time, domain="d01"):
+    attr_type_enforcement = {
+        'model_name': str,
+        'data_format': str,
+        'main_dir': str,
+        'sub_dir': str,
+        'valid_time': str,
+        'domain': str,
+    }
+    def __init__(self, model_name, data_format, main_dir, sub_dir, valid_time, domain="d01"):
         """Sets model attributes from user input
 
-            Parameters
+        Parameters
             ----------
             model_name : str
-                The model name, supported values are `wrf`,
-                `rrfs`, and `hrrr`
-
+                The model name, supported values are `wrf`, `rrfs`, and `hrrr`
             data_format : str
-                The model data type, supported values are
-                `netcdf` and `grib2`
-
+                The model data type, supported values are `netcdf` and `grib2`
             main_dir : str
                 The main model output directory
-
             sub_dir : str
                 Subdirectories to be searched for model output.
                 Can be a partial string, `**` will be appended
-
             valid_time : str
                 Model output valid time
-
             domain : str
-                domain to read, default is `d01` for wrf,
-                unused for `rrfs` and `hrrr`
+                domain to read, default is `d01` for wrf, but is unused for `rrfs` and `hrrr`
+
+        Raises:
+            TypeError
+            ModelInputError
         """
-        input_params = {"model_name": model_name,
-                        "data_format": data_format,
-                        "main_dir": main_dir,
-                        "sub_dir": sub_dir,
-                        "valid_time": valid_time,
-                        "domain": domain
-                        }
-
-        [catch(i, str) for i in input_params.values()]
-        input_params = {k: v.strip().lower() for k, v in input_params.items()}
-
-        # Check for supported models listed in config.py
-        tmpkey = "model_name"
-        if input_params[tmpkey] in config.supported_models:
-            setattr(self, tmpkey, input_params[tmpkey])
-        else:
-            raise ModelInputError(f"Model name {input_params[tmpkey]}"
-                            f" is not supported. List of supported model"
-                            f" names: {[config.supported_models]}")
-
-        # Check for supported data formats
-        tmpkey = "data_format"
-        if input_params[tmpkey] in config.supported_formats:
-            setattr(self, tmpkey, input_params[tmpkey])
-        else:
-            raise ModelInputError(f"Data format {input_params[tmpkey]}"
-                            f" is not supported. List of supported data"
-                            f" formats: {[config.supported_formats]}")
-
-        tmpkey = "main_dir"
-        tmpval = input_params[tmpkey]
-        tmpval = tmpval + "/" if not tmpval.endswith("/") else tmpval
-        setattr(self, tmpkey, tmpval)
-
-        tmpkey = "sub_dir"
-        tmpval = input_params[tmpkey]
-        tmpval = tmpval + "**/" if not tmpval.endswith("**/") else tmpval
-        setattr(self, tmpkey, tmpval)
-
-        tmpkey = "valid_time"
-        tmpval = input_params[tmpkey]
-        setattr(self, tmpkey, tmpval)
-
-        tmpkey = "domain"
-        tmpval = input_params[tmpkey]
-        setattr(self, tmpkey, tmpval)
-
-        setattr(self, "input_keys", input_params.keys())
+        self.model_name = model_name
+        self.data_format = data_format
+        self.main_dir = main_dir
+        self.sub_dir = sub_dir
+        self.valid_time = valid_time
+        self.domain = domain
+        # TODO: is this attribute necessary?
+        # self.input_keys = ['model_name', 'data_format', 'main_dir', 'sub_dir', 'valid_time', 'domain']
+        self._raise_for_invalid_parameter_types()
+        self._clean_parameter_values()
+        self._raise_for_invalid_parameter_values()
+        self.config = sm[self.model_name]
+        # TODO: can this be removed?
         print(self)
 
+    def _raise_for_invalid_parameter_types(self):
+        """Checks attr types against class level attr/type map
+        
+        Raises:
+            TypeError
+        """
+        for k, v in self.attr_type_enforcement.items():
+            if not isinstance(getattr(self, k), v):
+                raise TypeError(f"Input value '{getattr(self, k)}' must be a {v}")
+
+    def _clean_parameter_values(self):
+        """Performs basic transformations on attr values during __init__"""
+        for k, v in self.attr_type_enforcement.items():
+            # TODO: need to test this comparison
+            if v is str:
+                setattr(self, k, getattr(self, k).strip().lower())
+        # append appropriate endings to dir attrs if necessary
+        if not self.main_dir.endswith("/"):
+            self.main_dir += "/"
+        if not self.sub_dir.endswith("**/"):
+            self.sub_dir += "**/"
+
+    def _raise_for_invalid_parameter_values(self):
+        """Checks specific attr values to ensure they are valid per the config file.
+        
+        Raises:
+            ModelInputError
+        """
+        # Check for supported models listed in config.py
+        if self.model_name not in sm.keys():
+            raise ModelInputError(
+                f"Model name {self.model_name} is not supported. List of "
+                f"supported model names: {sm.keys()}"
+            )
+        # Check for supported data formats
+        if self.data_format not in sf.keys():
+            raise ModelInputError(
+                f"Data format {self.data_format} is not supported. List of"
+                f"supported data formats: {sf.keys()}"
+            )
     def __repr__(self):
         """Returns a string of all users specified model attributes"""
         output_string = [i + ": " + getattr(self, i) for i in self.input_keys]
