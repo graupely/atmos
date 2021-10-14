@@ -34,6 +34,16 @@ class ModelOutput:
         'valid_time': str,
         'domain': str,
     }
+
+    @staticmethod
+    def strip_ending_characters_from_string(string):
+        # TODO: document why these are getting stripped and potentially rename method
+        endings_to_strip = ['.nc', '.ncf', '.grib', '.grib2']
+        for e in endings_to_strip:
+            if string.endswith(e):
+                string = string[:-len(e)]
+        return string
+
     def __init__(self, model_name, data_format, main_dir, sub_dir, valid_time, domain="d01"):
         """Sets model attributes from user input
 
@@ -203,14 +213,7 @@ class ModelOutput:
                        for f in all_files_matching_year]
 
         # Strip off the ending if there is one
-        file_format = [f[:-3] if f.endswith(".nc") \
-                       else f for f in file_format]
-        file_format = [f[:-4] if f.endswith(".ncf") \
-                       else f for f in file_format]
-        file_format = [f[:-5] if f.endswith(".grib") \
-                       else f for f in file_format]
-        file_format = [f[:-6] if f.endswith(".grib2") \
-                       else f for f in file_format]
+        file_format = [self.strip_ending_characters_from_string(f) for f in file_format]
 
         # Get forecast and init hour for file format: hrrr.t00z.wrfnatf06.nc
         # or yyyymmddhh/f006.nc, these lists are empty otherwise
