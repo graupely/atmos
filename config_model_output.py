@@ -30,7 +30,7 @@ class ModelOutput:
         model output types"""
 
     def __init__(self, model_name, data_format, main_dir, sub_dir,
-                valid_time, domain = "d01"):
+                 valid_time, domain="d01"):
         """ Sets model attributes from user input
 
             Parameters
@@ -66,7 +66,7 @@ class ModelOutput:
                         }
 
         [catch(i, str) for i in input_params.values()]
-        input_params = {k:v.strip().lower() for k, v in input_params.items()}
+        input_params = {k: v.strip().lower() for k, v in input_params.items()}
 
         # Check for supported models listed in config.py
         tmpkey = "model_name"
@@ -88,12 +88,12 @@ class ModelOutput:
 
         tmpkey = "main_dir"
         tmpval = input_params[tmpkey]
-        tmpval = tmpval+"/" if not tmpval.endswith("/") else tmpval
+        tmpval = tmpval + "/" if not tmpval.endswith("/") else tmpval
         setattr(self, tmpkey, tmpval)
 
         tmpkey = "sub_dir"
         tmpval = input_params[tmpkey]
-        tmpval = tmpval+"**/" if not tmpval.endswith("**/") else tmpval
+        tmpval = tmpval + "**/" if not tmpval.endswith("**/") else tmpval
         setattr(self, tmpkey, tmpval)
 
         tmpkey = "valid_time"
@@ -104,16 +104,16 @@ class ModelOutput:
         tmpval = input_params[tmpkey]
         setattr(self, tmpkey, tmpval)
 
-        setattr(self,"input_keys",input_params.keys())
+        setattr(self, "input_keys", input_params.keys())
         print(self)
 
     def __repr__(self):
         """ Returns a string of all users specified model attributes"""
-        output_string = [i+": "+getattr(self,i) for i in self.input_keys]
-        return f"User variables have been set:\n"+"\n".join(output_string)
+        output_string = [i + ": " + getattr(self, i) for i in self.input_keys]
+        return f"User variables have been set:\n" + "\n".join(output_string)
 
     def find_valid_files(self):
-        """Finds one or more valid files from user input of
+        """ Finds one or more valid files from user input of
             main_dir, sub_dir, and valid_time"""
 
         # Model specific file search
@@ -190,11 +190,11 @@ class ModelOutput:
         time_index_start = base_time_file.rfind(
             self.valid_time[year_index_start:4])
         base_time = base_time_file[
-            time_index_start:time_index_start+len(self.valid_time)]
+            time_index_start:time_index_start + len(self.valid_time)]
         base_time_dtformat = datetime.strptime(
             base_time, config.time_format[self.model_name])
 
-        file_format = ["".join(f[time_index_start:].split(base_time+"/")) \
+        file_format = ["".join(f[time_index_start:].split(base_time + "/")) \
                        for f in all_files_matching_year]
 
         # Strip off the ending if there is one
@@ -209,12 +209,12 @@ class ModelOutput:
 
         # Get forecast and init hour for file format: hrrr.t00z.wrfnatf06.nc
         # or yyyymmddhh/f006.nc, these lists are empty otherwise
-        forecast_hours = [i[i.rfind("f")+1::] \
-                          for i in file_format if i.rfind("f")>0]
+        forecast_hours = [i[i.rfind("f") + 1::] \
+                          for i in file_format if i.rfind("f") > 0]
 
         #.. Initialization hour is alway format '\d\d', '2' is hardcoded
-        init_hours = [i[i.rfind("z")-2:i.rfind("z")] \
-                      for i in file_format if i.rfind("z")>0]
+        init_hours = [i[i.rfind("z") - 2:i.rfind("z")] \
+                      for i in file_format if i.rfind("z") > 0]
 
         valid_time_dtformat = datetime.strptime(
             self.valid_time, config.time_format[self.model_name])
@@ -233,7 +233,7 @@ class ModelOutput:
                 print(f"New attributes 'valid_files' and 'unread_files' set")
             else:
                 # Multiple valid files
-                multiple_valid_files = [x for _,x in sorted(
+                multiple_valid_files = [x for _, x in sorted(
                     zip(forecast_hours, all_files_matching_year))]
                 print(f"Multple valid files found: ")
                 new_valid_files = [f for f in multiple_valid_files \
@@ -277,13 +277,13 @@ class ModelOutput:
                                       f"Check 'valid_time' = "
                                       f"{self.valid_time}")
             time_match_index = time_match.index(True)
-            forecast_length = "f"+forecast_hours[time_match_index]
+            forecast_length = "f" + forecast_hours[time_match_index]
             print(f"Valid time is {self.valid_time} =")
             print(f"    base time + forecast length: "
                   f"{base_time} + {forecast_length}")
             new_file_search = base_time_file[
-                0:base_time_file.rfind("f")]+forecast_length
-            new_valid_file = glob.glob(new_file_search+"*")
+                0:base_time_file.rfind("f")] + forecast_length
+            new_valid_file = glob.glob(new_file_search + "*")
             if new_valid_file:
                 print(f"Base time is {base_time}, forecast length of "
                       f"valid time is {valid_minus_base_seconds} s")
@@ -318,7 +318,7 @@ class ModelOutput:
             except IOError as e:
                 print("I/O error({0}): {1}".format(e.errno, e.strerror))
 
-    def check_for_attributes(self, tmpval = "dims"):
+    def check_for_attributes(self, tmpval="dims"):
         """Check for model attributes dims or coords set in
             config.py and sets if any are missing
 
