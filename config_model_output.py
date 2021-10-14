@@ -11,7 +11,7 @@ import config
 
 
 def catch(user_input, defined_type):
-    """ Function that check type.
+    """Function that check type.
         Can be used in list comprehension"""
     if isinstance(user_input, defined_type):
         pass
@@ -21,17 +21,17 @@ def catch(user_input, defined_type):
 
 
 class ModelInputError(Exception):
-    """ Custom model input error"""
+    """Custom model input error"""
     pass
 
 
 class ModelOutput:
-    """ A Python object used to read an format various atmospheric
+    """A Python object used to read an format various atmospheric
         model output types"""
 
     def __init__(self, model_name, data_format, main_dir, sub_dir,
                  valid_time, domain="d01"):
-        """ Sets model attributes from user input
+        """Sets model attributes from user input
 
             Parameters
             ----------
@@ -108,12 +108,12 @@ class ModelOutput:
         print(self)
 
     def __repr__(self):
-        """ Returns a string of all users specified model attributes"""
+        """Returns a string of all users specified model attributes"""
         output_string = [i + ": " + getattr(self, i) for i in self.input_keys]
         return f"User variables have been set:\n" + "\n".join(output_string)
 
     def find_valid_files(self):
-        """ Finds one or more valid files from user input of
+        """Finds one or more valid files from user input of
             main_dir, sub_dir, and valid_time"""
 
         # Model specific file search
@@ -297,7 +297,7 @@ class ModelOutput:
                                       f"valid time = {self.valid_time}")
 
     def read_file(self):
-        """ Reads a single model output file using xarray"""
+        """Reads a single model output file using xarray"""
         if self.data_format == "netcdf":
             try:
                 with xr.open_dataset(self.unread_files[0]) as ds:
