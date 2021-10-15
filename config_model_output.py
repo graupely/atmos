@@ -80,6 +80,9 @@ class ModelOutput:
         self._clean_parameter_values()
         self._raise_for_invalid_parameter_values()
         self.config = sm[self.model_name]
+        self.valid_files = None
+        self.unread_files = None
+        self.ds = None
         # TODO: can this be removed?
         print(self)
 
@@ -123,10 +126,31 @@ class ModelOutput:
                 f"Data format {self.data_format} is not supported. List of"
                 f"supported data formats: {sf.keys()}"
             )
+
     def __repr__(self):
+        """Returns an unambiguous representation of the class instance"""
+        return f"""<ModelOutput:
+            model_name: {self.model_name},
+            data_format: {self.data_format},
+            main_dir: {self.main_dir},
+            sub_dir: {self.sub_dir},
+            valid_time: {self.valid_time},
+            domain: {self.domain},
+            valid_files: {self.valid_files},
+            unread_files: {self.unread_files},
+            ds: {str(self.ds)[:50]},
+        >"""
+
+    def __str__(self):
         """Returns a string of all users specified model attributes"""
-        output_string = [i + ": " + getattr(self, i) for i in self.input_keys]
-        return f"User variables have been set:\n" + "\n".join(output_string)
+        return f"""<ModelOutput: User defined attributes:
+            model_name: {self.model_name},
+            data_format: {self.data_format},
+            main_dir: {self.main_dir},
+            sub_dir: {self.sub_dir},
+            valid_time: {self.valid_time},
+            domain: {self.domain},
+        >"""
 
     def find_valid_files(self):
         """Finds one or more valid files from user input of
