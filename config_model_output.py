@@ -8,16 +8,12 @@ import xarray as xr
 import pandas as pd
 
 import config
+from config import supported_models as sm
+from config import supported_formats as sf
+from utils import get_logger
 
 
-def catch(user_input, defined_type):
-    """Function that check type.
-        Can be used in list comprehension"""
-    if isinstance(user_input, defined_type):
-        pass
-    else:
-        raise TypeError(f" Input value '{user_input}'"
-                        f" must be a {defined_type}")
+_LOGGER = get_logger('config_model_output', debug=True)
 
 
 class ModelInputError(Exception):
@@ -26,91 +22,132 @@ class ModelInputError(Exception):
 
 
 class ModelOutput:
-    """A Python object used to read an format various atmospheric
-        model output types"""
+    """A Python object used to read an format various atmospheric model output
+    types
+    """
 
-    def __init__(self, model_name, data_format, main_dir, sub_dir,
-                 valid_time, domain="d01"):
+    attr_type_enforcement = {
+        'model_name': str,
+        'data_format': str,
+        'main_dir': str,
+        'sub_dir': str,
+        'valid_time': str,
+        'domain': str,
+    }
+
+    @staticmethod
+    def strip_ending_characters_from_string(string):
+        # TODO: document why these are getting stripped and potentially rename method
+        endings_to_strip = ['.nc', '.ncf', '.grib', '.grib2']
+        for e in endings_to_strip:
+            if string.endswith(e):
+                string = string[:-len(e)]
+        return string
+
+    def __init__(self, model_name, data_format, main_dir, sub_dir, valid_time, domain="d01"):
         """Sets model attributes from user input
 
-            Parameters
+        Parameters
             ----------
             model_name : str
-                The model name, supported values are `wrf`,
-                `rrfs`, and `hrrr`
-
+                The model name, supported values are `wrf`, `rrfs`, and `hrrr`
             data_format : str
-                The model data type, supported values are
-                `netcdf` and `grib2`
-
+                The model data type, supported values are `netcdf` and `grib2`
             main_dir : str
                 The main model output directory
-
             sub_dir : str
                 Subdirectories to be searched for model output.
                 Can be a partial string, `**` will be appended
-
             valid_time : str
                 Model output valid time
-
             domain : str
-                domain to read, default is `d01` for wrf,
-                unused for `rrfs` and `hrrr`
+                domain to read, default is `d01` for wrf, but is unused for `rrfs` and `hrrr`
+
+        Raises:
+            TypeError
+            ModelInputError
         """
-        input_params = {"model_name": model_name,
-                        "data_format": data_format,
-                        "main_dir": main_dir,
-                        "sub_dir": sub_dir,
-                        "valid_time": valid_time,
-                        "domain": domain
-                        }
-
-        [catch(i, str) for i in input_params.values()]
-        input_params = {k: v.strip().lower() for k, v in input_params.items()}
-
-        # Check for supported models listed in config.py
-        tmpkey = "model_name"
-        if input_params[tmpkey] in config.supported_models:
-            setattr(self, tmpkey, input_params[tmpkey])
-        else:
-            raise ModelInputError(f"Model name {input_params[tmpkey]}"
-                            f" is not supported. List of supported model"
-                            f" names: {[config.supported_models]}")
-
-        # Check for supported data formats
-        tmpkey = "data_format"
-        if input_params[tmpkey] in config.supported_formats:
-            setattr(self, tmpkey, input_params[tmpkey])
-        else:
-            raise ModelInputError(f"Data format {input_params[tmpkey]}"
-                            f" is not supported. List of supported data"
-                            f" formats: {[config.supported_formats]}")
-
-        tmpkey = "main_dir"
-        tmpval = input_params[tmpkey]
-        tmpval = tmpval + "/" if not tmpval.endswith("/") else tmpval
-        setattr(self, tmpkey, tmpval)
-
-        tmpkey = "sub_dir"
-        tmpval = input_params[tmpkey]
-        tmpval = tmpval + "**/" if not tmpval.endswith("**/") else tmpval
-        setattr(self, tmpkey, tmpval)
-
-        tmpkey = "valid_time"
-        tmpval = input_params[tmpkey]
-        setattr(self, tmpkey, tmpval)
-
-        tmpkey = "domain"
-        tmpval = input_params[tmpkey]
-        setattr(self, tmpkey, tmpval)
-
-        setattr(self, "input_keys", input_params.keys())
+        self.model_name = model_name
+        self.data_format = data_format
+        self.main_dir = main_dir
+        self.sub_dir = sub_dir
+        self.valid_time = valid_time
+        self.domain = domain
+        self._raise_for_invalid_parameter_types()
+        self._clean_parameter_values()
+        self._raise_for_invalid_parameter_values()
+        self.config = sm[self.model_name]
+        self.valid_files = None
+        self.unread_files = None
+        self.ds = None
+        # TODO: can this be removed?
         print(self)
 
+    def _raise_for_invalid_parameter_types(self):
+        """Checks attr types against class level attr/type map
+        
+        Raises:
+            TypeError
+        """
+        for k, v in self.attr_type_enforcement.items():
+            if not isinstance(getattr(self, k), v):
+                raise TypeError(f"Input value '{getattr(self, k)}' must be a {v}")
+
+    def _clean_parameter_values(self):
+        """Performs basic transformations on attr values during __init__"""
+        for k, v in self.attr_type_enforcement.items():
+            # TODO: need to test this comparison
+            if v is str:
+                setattr(self, k, getattr(self, k).strip().lower())
+        # append appropriate endings to dir attrs if necessary
+        if not self.main_dir.endswith("/"):
+            self.main_dir += "/"
+        if not self.sub_dir.endswith("**/"):
+            self.sub_dir += "**/"
+
+    def _raise_for_invalid_parameter_values(self):
+        """Checks specific attr values to ensure they are valid per the config file.
+        
+        Raises:
+            ModelInputError
+        """
+        # Check for supported models listed in config.py
+        if self.model_name not in sm.keys():
+            raise ModelInputError(
+                f"Model name {self.model_name} is not supported. List of "
+                f"supported model names: {sm.keys()}"
+            )
+        # Check for supported data formats
+        if self.data_format not in sf.keys():
+            raise ModelInputError(
+                f"Data format {self.data_format} is not supported. List of"
+                f"supported data formats: {sf.keys()}"
+            )
+
     def __repr__(self):
+        """Returns an unambiguous representation of the class instance"""
+        return f"""<ModelOutput:
+            model_name: {self.model_name},
+            data_format: {self.data_format},
+            main_dir: {self.main_dir},
+            sub_dir: {self.sub_dir},
+            valid_time: {self.valid_time},
+            domain: {self.domain},
+            valid_files: {self.valid_files},
+            unread_files: {self.unread_files},
+            ds: {str(self.ds)[:50]},
+        >"""
+
+    def __str__(self):
         """Returns a string of all users specified model attributes"""
-        output_string = [i + ": " + getattr(self, i) for i in self.input_keys]
-        return f"User variables have been set:\n" + "\n".join(output_string)
+        return f"""<ModelOutput: User defined attributes:
+            model_name: {self.model_name},
+            data_format: {self.data_format},
+            main_dir: {self.main_dir},
+            sub_dir: {self.sub_dir},
+            valid_time: {self.valid_time},
+            domain: {self.domain},
+        >"""
 
     def find_valid_files(self):
         """Finds one or more valid files from user input of
@@ -144,6 +181,7 @@ class ModelOutput:
                    setattr(self, "valid_files", [file_search[0]])
                    setattr(self, "unread_files", [file_search[0]])
                    return
+                # TODO: why is this bad?
                 else:
                    raise ModelInputError(f"Multiple geogrid files found: "
                                          f"{file_search}")
@@ -162,6 +200,7 @@ class ModelOutput:
         valid_time_unix = datetime.strptime(self.valid_time,
                                         config.time_format[self.model_name]
                                         ).timestamp()
+        # TODO: this variable is unused
 
         # The starting index of year, %Y, in format string
         year_index_start = config.time_format[self.model_name].index("%Y")
@@ -198,14 +237,7 @@ class ModelOutput:
                        for f in all_files_matching_year]
 
         # Strip off the ending if there is one
-        file_format = [f[:-3] if f.endswith(".nc") \
-                       else f for f in file_format]
-        file_format = [f[:-4] if f.endswith(".ncf") \
-                       else f for f in file_format]
-        file_format = [f[:-5] if f.endswith(".grib") \
-                       else f for f in file_format]
-        file_format = [f[:-6] if f.endswith(".grib2") \
-                       else f for f in file_format]
+        file_format = [self.strip_ending_characters_from_string(f) for f in file_format]
 
         # Get forecast and init hour for file format: hrrr.t00z.wrfnatf06.nc
         # or yyyymmddhh/f006.nc, these lists are empty otherwise
