@@ -53,7 +53,9 @@ supported_models = {
     'wrf': {
         'search_path_modification': {
             'use_domain': True,
-            'sub_dir_domain_div': 'wrfout_',
+            'main_dir_sub_dir_div': '',
+            'sub_dir_file_div': '*/**/',
+            'prefix': 'wrfout_',
             'suffix': '*'
         },
         'time_format': '%Y-%m-%d_%H:%M:%S',
@@ -68,11 +70,22 @@ supported_models = {
     },
     'rrfs': {
         'search_path_modification': {
-            'suffix': 'dyn*'
+            'use_domain': False,
+            'main_dir_sub_dir_div': '',
+            'sub_dir_file_div': '*/**/',
+            'prefix': 'dyn',
+            'suffix': '*'
         },
         'time_format': '%Y%m%d%H',
     },
     'hrrr': {
+        'search_path_modification': {
+            'use_domain': False,
+            'main_dir_sub_dir_div': '',
+            'sub_dir_file_div': '*/**/',
+            'prefix': 'hrrr.',
+            'suffix': '*'
+        },
         'time_format': '%Y%m%d%H',
     },
 }
