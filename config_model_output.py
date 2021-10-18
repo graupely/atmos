@@ -35,24 +35,17 @@ class ModelOutput:
         'domain': str,
     }
 
-    @staticmethod
-    def strip_ending_characters_from_string(string):
-        # TODO: document why these are getting stripped and potentially rename method
-        endings_to_strip = ['.nc', '.ncf', '.grib', '.grib2']
-        for e in endings_to_strip:
-            if string.endswith(e):
-                string = string[:-len(e)]
-        return string
-
-    def __init__(self, model_name, data_format, main_dir, sub_dir, valid_time, domain="d01"):
+    def __init__(self, model_name, data_format, main_dir, sub_dir, valid_time, domain = 'd01'):
         """Sets model attributes from user input
 
         Parameters
             ----------
             model_name : str
-                The model name, supported values are `wrf`, `rrfs`, and `hrrr`
+                The model name, supported values in config.py and are currently
+                `wrf`, `rrfs`, and `hrrr`
             data_format : str
-                The model data type, supported values are `netcdf` and `grib2`
+                The model data type, supported values in config.py and
+                currently `netcdf` and `grib2`
             main_dir : str
                 The main model output directory
             sub_dir : str
@@ -80,8 +73,6 @@ class ModelOutput:
         self.valid_files = None
         self.unread_files = None
         self.ds = None
-        # TODO: can this be removed?
-        print(self)
 
     def _raise_for_invalid_parameter_types(self):
         """Checks attr types against class level attr/type map
@@ -91,7 +82,7 @@ class ModelOutput:
         """
         for k, v in self.attr_type_enforcement.items():
             if not isinstance(getattr(self, k), v):
-                raise TypeError(f"Input value '{getattr(self, k)}' must be a {v}")
+                raise TypeError(f"Input value '{k} = {getattr(self, k)}' must be a {v}")
 
     def _clean_parameter_values(self):
         """Performs basic transformations on attr values during __init__"""
@@ -99,11 +90,9 @@ class ModelOutput:
             # TODO: need to test this comparison
             if v is str:
                 setattr(self, k, getattr(self, k).strip().lower())
-        # append appropriate endings to dir attrs if necessary
+        # Append appropriate endings to dir attrs if necessary
         if not self.main_dir.endswith("/"):
             self.main_dir += "/"
-        if not self.sub_dir.endswith("**/"):
-            self.sub_dir += "**/"
 
     def _raise_for_invalid_parameter_values(self):
         """Checks specific attr values to ensure they are valid per the config file.
@@ -149,184 +138,163 @@ class ModelOutput:
             domain: {self.domain},
         >"""
 
+    def set_valid_file_attrs(self, file_match):
+        """Sets new attribute for valid files
+           or appends to list of valid files
+
+        Parameters
+            ----------
+            file_match : str
+        """
+        if getattr(self, "valid_files") is None:
+            print(f"Valid file found: {file_match}")
+            print(f"Setting attributes 'valid_files' "
+                  f"and 'unread_files'")
+            setattr(self, "valid_files", [file_match])
+            setattr(self, "unread_files", [file_match])
+        else:
+            print(f"Additional valid file found: {file_match}, "
+                  f"files in 'valid_files' sorted by forecast length")
+            self.valid_files.append(file_match)
+            self.unread_files.append(file_match)
+
     def find_valid_files(self):
         """Finds one or more valid files from user input of
-            main_dir, sub_dir, and valid_time"""
+            main_dir, sub_dir, and valid_time
+        """
+        # Search path
+        search_path_attrs = self.config['search_path_modification']
+        search_path = self.main_dir + search_path_attrs['main_dir_sub_dir_div'] \
+                      + self.sub_dir + search_path_attrs['sub_dir_file_div'] \
+                      + search_path_attrs['prefix']
 
-        # Model specific file search
-        if(self.model_name == "wrf"):
-            search_path = self.main_dir+self.sub_dir+"wrfout_"+self.domain+"*"
-        elif(self.model_name == "wrf-geogrid"):
-            search_path = self.main_dir+"geo_em."+self.domain+".nc"
-        elif(self.model_name == "rrfs"):
-            search_path = self.main_dir+self.sub_dir+"dyn"+"*"
-        elif(self.model_name == "hrrr"):
-            search_path = self.main_dir+self.sub_dir+"*"
-        else:
-            search_path = self.main_dir+self.sub_dir+"*"
+        if search_path_attrs['use_domain']:
+            search_path += self.domain
+        search_path += search_path_attrs['suffix']
 
-        # File search path
+        # File search
         file_search = glob.glob(search_path)
 
-        # Geogrid does not have time associated with it
-        if self.model_name == "wrf-geogrid":
-            # If no files found search subdirectories
-            if not file_search:
-                search_path = self.main_dir+self.sub_dir \
-                              +"geo_em."+self.domain+".nc"
-                file_search = glob.glob(search_path)
-                if len(file_search) == 1:
-                   print(f"Single geogrid file found in subdirectory: "
-                         f"{file_search[0]}")
-                   setattr(self, "valid_files", [file_search[0]])
-                   setattr(self, "unread_files", [file_search[0]])
-                   return
-                # TODO: why is this bad?
-                else:
-                   raise ModelInputError(f"Multiple geogrid files found: "
-                                         f"{file_search}")
-            else:
-                if len(file_search) == 1:
-                   print(f"Single geogrid file found in main directory: "
-                         f"{file_search[0]}")
-                   setattr(self, "valid_files", [file_search[0]])
-                   setattr(self, "unread_files", [file_search[0]])
-                   return
-                else:
-                   raise ModelInputError(f"Multiple geogrid files found: "
-                                         f"{file_search}")
+        # Match if valid time in file search
+        direct_file_match = [f for f in file_search if self.valid_time in f]
 
-        # Unix time
-        valid_time_unix = datetime.strptime(self.valid_time,
-                                        config.time_format[self.model_name]
-                                        ).timestamp()
-        # TODO: this variable is unused
-
-        # The starting index of year, %Y, in format string
-        year_index_start = config.time_format[self.model_name].index("%Y")
-
-        #.. valid_file will not match if file format is
-        #.. yyyymmdd/fcast_001 and if yyymmdd is not valid_time
-        #.. Must find base time + forecast hour (done below)
-        valid_file = [f for f in file_search if self.valid_time in f]
-
-        # Sorted list of all files that include the correct year: 'YYYY'
-        all_files_matching_year = sorted(list(set(
-            [f for f in file_search \
-                if self.valid_time[year_index_start:4] in f])))
-
-        # Error if nothing in all_files_matching_year
-        if not all_files_matching_year:
-            raise ModelInputError(f"File search returned "
-                                  f"no matches. Check values of "
-                                  f"'main_dir' = {self.main_dir}, \n"
-                                  f"'sub_dir' = {self.sub_dir}, and "
-                                  f"'valid_time' = {self.valid_time}")
-
-        # Base time, based on all matching files
-        base_time_file = all_files_matching_year[0]
-
-        time_index_start = base_time_file.rfind(
-            self.valid_time[year_index_start:4])
-        base_time = base_time_file[
-            time_index_start:time_index_start + len(self.valid_time)]
-        base_time_dtformat = datetime.strptime(
-            base_time, config.time_format[self.model_name])
-
-        file_format = ["".join(f[time_index_start:].split(base_time + "/")) \
-                       for f in all_files_matching_year]
-
-        # Strip off the ending if there is one
-        file_format = [self.strip_ending_characters_from_string(f) for f in file_format]
-
-        # Get forecast and init hour for file format: hrrr.t00z.wrfnatf06.nc
-        # or yyyymmddhh/f006.nc, these lists are empty otherwise
-        forecast_hours = [i[i.rfind("f") + 1::] \
-                          for i in file_format if i.rfind("f") > 0]
-
-        #.. Initialization hour is alway format '\d\d', '2' is hardcoded
-        init_hours = [i[i.rfind("z") - 2:i.rfind("z")] \
-                      for i in file_format if i.rfind("z") > 0]
-
-        valid_time_dtformat = datetime.strptime(
-            self.valid_time, config.time_format[self.model_name])
-
-        valid_minus_base_seconds = (valid_time_dtformat \
-            - base_time_dtformat).total_seconds()
-
-        if valid_file:
-            if len(valid_file) == 1:
-                # If one valid file is found
-                print(f"Base time is {base_time}, forecast length of "
-                      f"valid time is {valid_minus_base_seconds} s")
-                print(f"Single valid file found: {valid_file[0]}")
-                setattr(self, "valid_files", valid_file)
-                setattr(self, "unread_files", valid_file)
-                print(f"New attributes 'valid_files' and 'unread_files' set")
-            else:
-                # Multiple valid files
-                multiple_valid_files = [x for _, x in sorted(
-                    zip(forecast_hours, all_files_matching_year))]
-                print(f"Multple valid files found: ")
-                new_valid_files = [f for f in multiple_valid_files \
-                                    if self.valid_time in f]
-                # Assumed that if init_hour is found, multiple
-                # forecasts valid at the same time are in directory.
-                # Else, assume that multiple files were matched because
-                # an analysis time was chosen, matching the file directory
-                if init_hours:
-                    print(f"Various initialized times found.")
-                    [print(f"{f}") for f in new_valid_files]
-                    setattr(self, "valid_files", new_valid_files)
-                    setattr(self, "unread_files", new_valid_files)
-                    print(f"New attributes "
-                          f"'valid_files' and 'unread_files' set")
-                else:
-                    # For yyyymmddhh/forecast01, if valid_time is set to
-                    # the analysis, then all forecast files in yyyymmddhh
-                    # will be matched. This takes the first file in the
-                    # sorted listed, or the anlaysis. If the valid time is
-                    # the next hour, then valid_time will be different than
-                    # the search directory and no valid times will match
-                    # and the valid file will be found in the else below
-                    print(f"Single analysis file found: {new_valid_files[0]}")
-                    setattr(self, "valid_files", [new_valid_files[0]])
-                    setattr(self, "unread_files", [new_valid_files[0]])
-                    print(f"New attributes "
-                          f"'valid_files' and 'unread_files' set")
+        # Simple case of single file matching valid_time
+        if len(direct_file_match) == 1:
+            self.set_valid_file_attrs(direct_file_match[0])
+            return
+        # Handles zero or more than one file matching the valid_time
         else:
-            # No valid file found, assume that the formatting is
-            # basetime/forecast
-            print(f"No exact file matches found...")
-            print(f"    valid files assumed to have format: "
-                  f"'base_time/fcast', or yyyymmddhh/f006,\n"
-                  f"    where yyyymmddhh != valid_time.")
-            valid_hour_int = int(valid_minus_base_seconds/3600.)
-            time_match = [int(i)==valid_hour_int for i in forecast_hours]
-            if not any(time_match):
-                raise ModelInputError(f"No valid forecasts were found in "
-                                      f"{search_path} \n"
-                                      f"Check 'valid_time' = "
-                                      f"{self.valid_time}")
-            time_match_index = time_match.index(True)
-            forecast_length = "f" + forecast_hours[time_match_index]
-            print(f"Valid time is {self.valid_time} =")
-            print(f"    base time + forecast length: "
-                  f"{base_time} + {forecast_length}")
-            new_file_search = base_time_file[
-                0:base_time_file.rfind("f")] + forecast_length
-            new_valid_file = glob.glob(new_file_search + "*")
-            if new_valid_file:
-                print(f"Base time is {base_time}, forecast length of "
-                      f"valid time is {valid_minus_base_seconds} s")
-                print(f"Single valid file found: {new_valid_file[0]}")
-                setattr(self, "valid_files", new_valid_file)
-                setattr(self, "unread_files", new_valid_file)
-                print(f"New attributes "
-                      f"'valid_files' and 'unread_files' set")
+            # The starting index of year, %Y, in format string
+            year_index_start = self.config['time_format'].index("%Y")
+
+            # Sorted list of all files that include the correct year: 'YYYY'
+            # TODO: This will break if forecast spans two years
+            all_files_matching_year = sorted(list(set(
+                [f for f in file_search \
+                 if self.valid_time[year_index_start:4] in f])))
+
+            # Error if no files found
+            if not all_files_matching_year:
+                raise ModelInputError(f"File search returned "
+                                      f"no matches, search path was "
+                                      f"'{search_path}'\n"
+                                      f"Check values of "
+                                      f"'main_dir' = {self.main_dir}, \n"
+                                      f"'sub_dir' = {self.sub_dir}, and "
+                                      f"'valid_time' = {self.valid_time}")
+
+            # Get location of 4-digit year in first matching file
+            time_index_start = all_files_matching_year[0].rfind(
+                self.valid_time[year_index_start:4])
+
+            # Get file base time
+            base_time_string = all_files_matching_year[0][
+                time_index_start:time_index_start + len(self.valid_time)]
+
+            # File format assumed to be everything after the last '/'
+            file_format = [f[time_index_start:].rsplit("/")[1] \
+                           for f in all_files_matching_year]
+
+            # Get forecast and initialization hour from files
+            forecast_hours = []
+            init_hours = []
+            for f in file_format:
+                fhour = f.rfind("f")
+                ihour = f.rfind("z")
+                # The '4' is from the assumption that forecast hour
+                # in file is 'f' followed by three or fewer numbers
+                get_forecast_times = "".join([
+                    c for c in f[fhour + 1: fhour + 4] if \
+                    c.isdigit() and fhour > 0])
+                # The '2' is from the assumption that initialization
+                # time is two digits followed by 'z'
+                get_init_times = "".join([
+                    c for c in f[ihour - 2: ihour] if \
+                    c.isdigit() and ihour > 0])
+                forecast_hours.append(get_forecast_times)
+                init_hours.append(get_init_times)
+
+            # Files and initializations hours are sorted by forecast length
+            files_sorted_by_forecast_hour = [
+                x for _, x in sorted(zip(forecast_hours, all_files_matching_year))]
+            init_hours_sorted_by_forecast_hour = [
+                x for _, x in sorted(zip(forecast_hours, init_hours))]
+            sorted_forecast_hours = sorted(forecast_hours)
+
+            # Cases to handle base time + forecast
+            # requires forecast_hours to exist
+            if sorted_forecast_hours:
+                # If initialization hours are found, add initialization 
+                # hour and forecast and check against the hour in valid_time
+                if all(init_hours_sorted_by_forecast_hour):
+                    init_hour_plus_forecast = [
+                        int(i) + int(f) for f, i in zip(
+                            init_hours_sorted_by_forecast_hour, sorted_forecast_hours)]
+                    # Replace %Y with YYYY to find the hour_index
+                    hour_index_start = self.config['time_format'].replace('%Y', 'YYYY').index("%H")
+                    # Valid hour is assumed to be 2 digits
+                    find_valid_hour = int(self.valid_time[hour_index_start:hour_index_start + 2])
+                    
+                    for i, f in enumerate(init_hour_plus_forecast):
+                        # If valid hour matches init + forecast,
+                        # add that file to valid files, for example
+                        # If valid hour = 20, init_hour = 12z and forecast = f008, 
+                        # then init + forecast = 20 and file is sufficently matched
+                        if f == find_valid_hour:
+                            self.set_valid_file_attrs(
+                                files_sorted_by_forecast_hour[i])
+                        else:
+                            print(f"'{f}' does not match "
+                                  f"valid hour '{int(find_valid_hour)}'")
+                else:
+                    # This else deals with files that do not contain
+                    # an initialization hour and are base time + forecast
+                    # Base time in datetime (dt) format
+                    base_time_dtformat = datetime.strptime(
+                        base_time_string, self.config['time_format'])
+                    # Calculation of base time + forecast
+                    base_time_plus_forecast = [
+                        datetime.strftime(base_time_dtformat \
+                                          + timedelta(hours=int(i)), self.config['time_format']) \
+                        for i in sorted(forecast_hours)]
+                    # Search for base time + forecast in valid_time
+                    base_time_plus_forecast_index = [
+                        base_time_plus_forecast.index(f) \
+                        for f in base_time_plus_forecast if f in self.valid_time]
+                    if len(base_time_plus_forecast_index) == 1:
+                        self.set_valid_file_attrs(all_files_matching_year[
+                            base_time_plus_forecast_index[0]])
+                    elif len(base_time_plus_forecast_index) == 0:
+                        raise ModelInputError(f"Found no valid files from base time + forecast "
+                                              f"with base time = {base_time_string} and \n"
+                                              f"base time + forecast = {base_time_plus_forecast} "
+                                              f"where valid time = {self.valid_time}")
+                    else:
+                        raise ModelInputError(f"Found multiple valid base time + forecast")
             else:
-                raise ModelInputError(f"Single valid file not found for "
-                                      f"valid time = {self.valid_time}")
+                # Error if no forecast hours are found
+                raise ModelInputError(f"Forecast hours not found in file names "
+                                      f"and are needed for base_time + forecast")
 
     def read_file(self):
         """Reads a single model output file using xarray"""
@@ -397,3 +365,6 @@ class ModelOutput:
                 else:
                     print(f"Setting missing {tmpval} {k} to {tmpattr}")
                     setattr(self, k, tmpattr)
+                    
+
+
