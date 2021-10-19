@@ -73,6 +73,11 @@ class ModelOutput:
         self.valid_files = None
         self.unread_files = None
         self.ds = None
+        self.nt = None
+        self.nz = None
+        self.ny = None
+        self.nx = None
+        self.time = None
 
     def _raise_for_invalid_parameter_types(self):
         """Checks attr types against class level attr/type map
@@ -305,6 +310,7 @@ class ModelOutput:
         Raises:
             IoError
         """
+        # TODO: set read attributes in config (supported formats dictionary)
         if self.data_format == "netcdf":
             try:
                 with xr.open_dataset(self.unread_files[0]) as ds:
@@ -325,53 +331,39 @@ class ModelOutput:
             except IOError as e:
                 print("I/O error({0}): {1}".format(e.errno, e.strerror))
 
-    def check_for_attributes(self, tmpval="dims"):
-        """Check for model attributes dims or coords set in
-            config.py and sets if any are missing
-
-        Parameters
-            ----------
-            tmpval : str
-                Either `dims` or `coords`
+    def set_time(self):
+        """Check for model time in
+            config.py and sets
         """
-        if not (tmpval == "dims" or tmpval == "coords"):
-            raise ModelInputError(f"Attribute check can only"
-                                  f" be for 'dims' or 'coords',"
-                                  f" not {tmpval}")
+        if 'time' in self.config.keys() and hasattr(self.ds, self.config['time']):
+            update_value = getattr(self.ds, self.config['time'])
+            print(f"Setting time to {update_value.values[0]}")
+            setattr(self, 'time', update_value.values[0])
+        else:
+            # TODO: set time based on file search if time
+            # not written in file itself
+            print("Time not found.")
 
-        print(f"Checking {self.model_name} attributes")
-        if not self.model_name in getattr(config, tmpval):
-            print(f"No {tmpval} for {self.model_name}")
-            return
+    def set_dimensions(self):
+        """Check for model dims in config.py
+            and sets values if any are missing
 
-        # If attribute missing, get and set attribute
-        if not all([hasattr(self, k) for k \
-                    in getattr(config, tmpval)[self.model_name]]):
-            [print(f"Missing {tmpval}: {k}") for k in getattr(
-                config, tmpval)[self.model_name] if not hasattr(self, k)]
-            self.get_model_attributes(tmpval)
-
-    def get_model_attributes(self, tmpval):
-        """Gets model attributes if missing
-
-        Parameters
-            ----------
-            tmpval : str
-                Either `dims` or `coords`
+        Raises:
+            ModelInputError
         """
-        # For loop for simplicity since there are only 4 dimensions
-        # max (time, x, y, z) and 4 coordinates max (time, x, y, z)
-        for k,v in getattr(config, tmpval)[self.model_name].items():
-            if not hasattr(self, k):
-                tmpattr = getattr(self.ds, tmpval) \
-                [getattr(config,tmpval)[self.model_name][k]]
-                if hasattr(tmpattr, "values"):
-                    print(f"Setting missing {tmpval} {k} to"
-                          f"{type(tmpattr.values)}")
-                    setattr(self, k, tmpattr.values)
-                else:
-                    print(f"Setting missing {tmpval} {k} to {tmpattr}")
-                    setattr(self, k, tmpattr)
-                    
-
-
+        if 'dims' in self.config.keys() and hasattr(self.ds, 'dims'):
+            model_dims = getattr(self.ds, 'dims')
+            new_dims = self.config['dims']
+            for k, v in new_dims.items():
+                current_value = getattr(self, k)
+                if current_value is None and v in model_dims:
+                    update_value = model_dims[v]
+                    print(f"Setting dimension {k} to {update_value}")
+                    setattr(self, k, update_value)
+        else:
+            raise ModelInputError(f"'dims' must be set in "
+                                  f"config.py and must be "
+                                  f" an attribute of self.ds. "
+                                  f"A future version "
+                                  f"will find dims manually. "
+                                  f"'self.ds.dims = {self.ds.dims}'")
