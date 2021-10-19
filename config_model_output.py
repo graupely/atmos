@@ -262,8 +262,11 @@ class ModelOutput:
                     hour_index_start = self.config['time_format'].replace('%Y', 'YYYY').index("%H")
                     # Valid hour is assumed to be 2 digits
                     find_valid_hour = int(self.valid_time[hour_index_start:hour_index_start + 2])
-                    
-                    for i, f in enumerate(init_hour_plus_forecast):
+
+                    # Ensure that init_hour_plus_forecast is from 0 - 23 hours
+                    init_hour_plus_forecast_24h = [i - 24 if i >= 24 \
+                                                   else i for i in init_hour_plus_forecast]
+                    for i, f in enumerate(init_hour_plus_forecast_24h):
                         # If valid hour matches init + forecast,
                         # add that file to valid files, for example
                         # If valid hour = 20, init_hour = 12z and forecast = f008, 
