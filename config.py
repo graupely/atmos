@@ -54,11 +54,18 @@ supported_models = {
         'search_path_modification': {
             'use_domain': True,
             'main_dir_sub_dir_div': '',
-            'sub_dir_file_div': '*/**/',
+            'sub_dir_file_div': '**/',
             'prefix': 'wrfout_',
             'suffix': '*'
         },
         'time_format': '%Y-%m-%d_%H:%M:%S',
+        'time': 'XTIME',
+        'dims': {
+            'nt': 'Time',
+            'nz': 'bottom_top',
+            'ny': 'south_north',
+            'nx': 'west_east'
+        },
     },
     'wrf-geogrid': {
         'search_path_modification': {
@@ -72,7 +79,7 @@ supported_models = {
         'search_path_modification': {
             'use_domain': False,
             'main_dir_sub_dir_div': '',
-            'sub_dir_file_div': '*/**/',
+            'sub_dir_file_div': '**/',
             'prefix': 'dyn',
             'suffix': '*'
         },
@@ -82,7 +89,7 @@ supported_models = {
         'search_path_modification': {
             'use_domain': False,
             'main_dir_sub_dir_div': '',
-            'sub_dir_file_div': '*/**/',
+            'sub_dir_file_div': '**/',
             'prefix': 'hrrr.',
             'suffix': '*'
         },
