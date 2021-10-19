@@ -161,6 +161,9 @@ class ModelOutput:
     def find_valid_files(self):
         """Finds one or more valid files from user input of
             main_dir, sub_dir, and valid_time
+
+        Raises:
+            ModelInputError
         """
         # Search path
         search_path_attrs = self.config['search_path_modification']
@@ -297,7 +300,11 @@ class ModelOutput:
                                       f"and are needed for base_time + forecast")
 
     def read_file(self):
-        """Reads a single model output file using xarray"""
+        """Reads a single model output file using xarray
+
+        Raises:
+            IoError
+        """
         if self.data_format == "netcdf":
             try:
                 with xr.open_dataset(self.unread_files[0]) as ds:
